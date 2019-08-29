@@ -1,0 +1,21 @@
+syntax = "proto3";
+package proto;
+
+enum Op {
+    PUSH = 0;
+    POP = 1;
+    POP_DATA = 2;
+}
+
+message Request {
+    int64 id = 1;
+    string queue = 2;
+    Op Op = 3;
+    bytes data =4;
+}
+
+message Response {
+    int64 id = 1;
+    Op Op = 2;
+    bytes data =3;
+}
