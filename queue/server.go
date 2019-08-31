@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	queueProto "github.com/xumc/mini-queue/proto"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -137,7 +137,20 @@ func (s *server) handleRequest(_ context.Context, connChan chan []byte, reqBytes
 
 	switch pb.Op {
 	case queueProto.Op_PUSH:
-		queue.Push(pb.Data)
+		err := queue.Push(pb.Data)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		// push ack
+		data, err := rawDataToResponseData(pb.Id, pb.Queue, queueProto.Op_PUSH_ACK, []byte{})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		connChan <- data
+
+		log.Debug(pb.Id, "server send ack")
+
 	case queueProto.Op_POP:
 		go func() {
 			consumer := queue.NewConsumer()
@@ -147,7 +160,7 @@ func (s *server) handleRequest(_ context.Context, connChan chan []byte, reqBytes
 					log.Fatalln(err)
 				}
 
-				data, err := rawDataToResponseData(pb.Id, queueProto.Op_POP_DATA, rawData)
+				data, err := rawDataToResponseData(pb.Id, pb.Queue, queueProto.Op_POP_DATA, rawData)
 				if err != nil {
 					log.Fatalln(err)
 				}
@@ -158,9 +171,10 @@ func (s *server) handleRequest(_ context.Context, connChan chan []byte, reqBytes
 	}
 }
 
-func rawDataToResponseData(id int64, op queueProto.Op, data []byte) ([]byte, error) {
+func rawDataToResponseData(id int64, queueName string, op queueProto.Op, data []byte) ([]byte, error) {
 	pb := &queueProto.Response{
 		Id:   id,
+		Queue: queueName,
 		Op:   op,
 		Data: data,
 	}

@@ -2,8 +2,8 @@ package queue
 
 import (
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 )
 
 func readOneMsg(conn io.Reader) ([]byte, error) {

@@ -3,13 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/xumc/mini-queue/queue"
-	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
+
+func init() {
+	log.SetFormatter(&log.TextFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+}
 
 func main() {
 	run()
@@ -24,7 +31,7 @@ func run() {
 	}
 	defer client.Close()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		// pop
 		go func(innerCtx context.Context, gid int) {
 			dataChan, err := client.Pop(fmt.Sprintf("myqueue-%d", gid))
@@ -34,28 +41,28 @@ func run() {
 				case <- innerCtx.Done():
 					return
 				case data := <-dataChan:
-					fmt.Println("client recv: ", string(data))
+					log.Println("client recv: ", string(data))
 				}
 			}
 
 			if err != nil {
-				log.Fatalln(err.Error())
+				log.Debug(err.Error())
 			}
 
 		}(ctx, i)
 	}
 
 	//push
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		go func(innerCtx context.Context, gid int) {
 			for {
 				select {
 				case <- innerCtx.Done():
 					return
 				case <- time.Tick(time.Second):
-					data := []byte(time.Now().String() + "\n")
-					fmt.Println("client send: ", string(data))
-					err = client.Push(fmt.Sprintf("myqueue-%d", gid), data)
+					data := []byte(strconv.Itoa(gid) + " => " + time.Now().String() + "\n")
+					log.Debug("client send: ", string(data))
+					err = client.Push(fmt.Sprintf("myqueue"), data)
 					if err != nil {
 						log.Fatalln(err.Error())
 					}
